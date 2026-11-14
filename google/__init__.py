@@ -1,0 +1,1 @@
+# google namespace package placeholder

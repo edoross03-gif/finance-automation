@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kolme Automations · Dashboard</title>
+    <!-- Google Fonts: Plus Jakarta Sans per l'interfaccia, JetBrains Mono per il codice/terminale -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons per icone vettoriali pulite -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        kole: {
+                            bg: '#F9FAFB',
+                            primary: '#2563EB', // Cobalt Blue
+                            primaryHover: '#1D4ED8',
+                            dark: '#0F172A',
+                            border: '#E2E8F0',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #F9FAFB;
+        }
+        /* Custom scrollbar per il terminale */
+        .terminal-scroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        .terminal-scroll::-webkit-scrollbar-track {
+            background: #0B0F19;
+        }
+        .terminal-scroll::-webkit-scrollbar-thumb {
+            background: #1E293B;
+            border-radius: 4px;
+        }
+        .terminal-scroll::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-blue-200">
+                    K
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-900 leading-tight">Kolme Finance Automation</h1>
+                    <p class="text-xs text-slate-500">Gestione & Esecuzione Script in Locale</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <div class="text-center sm:text-right hidden sm:block">
+                    <span class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Stato Piattaforma</span>
+                    <div class="flex items-center gap-1.5 justify-end mt-0.5">
+                        <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="text-xs text-slate-700 font-medium">Attivo in locale</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 max-w-7xl w-full mx-auto px-6 py-8 flex flex-col lg:flex-row gap-8">
+        
+        <!-- Sidebar: Uploads and File Management -->
+        <aside class="w-full lg:w-80 flex flex-col gap-6 shrink-0">
+            
+            <!-- File Upload Section -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                <h3 class="font-bold text-sm text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="upload-cloud" class="h-4 w-4 text-blue-600"></i>
+                    Carica Dati (Excel/CSV/TXT)
+                </h3>
+                
+                <!-- Drag and Drop Area -->
+                <div id="drop-zone" class="border-2 border-dashed border-slate-200 hover:border-blue-500 rounded-xl p-6 text-center cursor-pointer transition bg-slate-50 hover:bg-blue-50/20 flex flex-col items-center justify-center gap-2">
+                    <i data-lucide="file-spreadsheet" class="h-8 w-8 text-slate-400"></i>
+                    <p class="text-xs font-semibold text-slate-700">Trascina qui i tuoi file</p>
+                    <p class="text-[10px] text-slate-400">Excel, CSV, TXT, JSON o MD</p>
+                    <input type="file" id="file-input" class="hidden" multiple accept=".xlsx,.xls,.csv,.txt,.json,.md">
+                    <button onclick="document.getElementById('file-input').click()" class="mt-2 text-xs font-medium text-blue-600 hover:underline">
+                        oppure sfoglia i file
+                    </button>
+                </div>
+
+                <!-- Upload Progress -->
+                <div id="upload-progress-container" class="hidden space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span id="upload-status" class="font-medium text-slate-600">Caricamento in corso...</span>
+                        <span id="upload-pct" class="font-bold text-slate-900">0%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                        <div id="upload-progress-bar" class="bg-blue-600 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Area File di Lavoro -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col flex-1 min-h-[350px]">
+                <h3 class="font-bold text-xs text-slate-400 uppercase tracking-wider flex items-center gap-2 mb-3">
+                    <i data-lucide="folder-open" class="h-3.5 w-3.5 text-blue-600"></i>
+                    Area File di Lavoro
+                </h3>
+                <div id="files-list" class="space-y-2 flex-1 overflow-y-auto max-h-[320px] pr-1">
+                    <div class="text-center py-8 text-slate-400 text-xs">
+                        Nessun file presente nell'area di lavoro
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="flex-1 flex flex-col gap-8">
+            
+            <!-- Scripts grid container -->
+            <section class="space-y-5">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Script di Automazione</h2>
+                        <p class="text-xs text-slate-500">Seleziona uno script, imposta i parametri ed eseguilo in tempo reale</p>
+                    </div>
+                    <button onclick="loadScripts()" class="text-slate-400 hover:text-slate-900 transition" title="Aggiorna lista">
+                        <i data-lucide="refresh-cw" class="h-5 w-5"></i>
+                    </button>
+                </div>
+                
+                <!-- Scripts Grid -->
+                <div id="scripts-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Dynamic script cards -->
+                </div>
+            </section>
+
+            <!-- Console / Realtime log Output -->
+            <section class="bg-[#0B0F19] rounded-2xl shadow-xl overflow-hidden border border-slate-800 flex flex-col h-[400px]">
+                <!-- Console Header -->
+                <div class="bg-[#111827] px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="h-3 w-3 rounded-full bg-amber-500"></span>
+                        <h3 class="text-sm font-semibold text-slate-200 font-mono">Terminal Output</h3>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <!-- Auto-scroll switch -->
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="autoscroll-toggle" checked class="rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500">
+                            <span class="text-xs font-mono text-slate-400 select-none">Auto-scroll</span>
+                        </label>
+                        <!-- Clear button -->
+                        <button onclick="clearConsole()" class="text-xs font-mono text-slate-400 hover:text-slate-200 flex items-center gap-1 transition">
+                            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                            Pulisci
+                        </button>
+                    </div>
+                </div>
+                <!-- Console log display -->
+                <div id="console-logs" class="p-6 overflow-y-auto flex-1 font-mono text-xs text-emerald-400 space-y-1 bg-[#070B14] terminal-scroll">
+                    <div class="text-slate-500">// I log di esecuzione in tempo reale appariranno qui...</div>
+                </div>
+            </section>
+
+        </main>
+
+    </div>
+
+    <!-- Interactive script modals, logic & notifications -->
+    <script>
+        let uploads = []; // List of files in uploads/
+        let runningScript = null; // Currently running script filename
+        let eventSource = null; // SSE connection
+        let allScripts = []; // List of scripts
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // Inizializza icone Lucide
+            lucide.createIcons();
+            
+            // Carica lista file e script all'avvio
+            loadUploads();
+            loadScripts();
+            
+            // Imposta Drag and Drop
+            setupDragAndDrop();
+        });
+
+        // Setup Drag and Drop files uploader
+        function setupDragAndDrop() {
+            const zone = document.getElementById("drop-zone");
+            const fileInput = document.getElementById("file-input");
+            
+            zone.addEventListener("dragover", (e) => {
+                e.preventDefault();
+                zone.classList.add("border-blue-500", "bg-blue-50/40");
+            });
+            
+            zone.addEventListener("dragleave", () => {
+                zone.classList.remove("border-blue-500", "bg-blue-50/40");
+            });
+            
+            zone.addEventListener("drop", (e) => {
+                e.preventDefault();
+                zone.classList.remove("border-blue-500", "bg-blue-50/40");
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    uploadFilesSequentially(files);
+                }
+            });
+            
+            fileInput.addEventListener("change", () => {
+                if (fileInput.files.length > 0) {
+                    uploadFilesSequentially(fileInput.files);
+                }
+            });
+        }
+
+        // Upload multiple files sequentially
+        async function uploadFilesSequentially(filesList) {
+            const container = document.getElementById("upload-progress-container");
+            const statusBar = document.getElementById("upload-progress-bar");
+            const statusText = document.getElementById("upload-status");
+            const statusPct = document.getElementById("upload-pct");
+            
+            container.classList.remove("hidden");
+            
+            for (let i = 0; i < filesList.length; i++) {
+                const file = filesList[i];
+                statusText.innerText = `Caricamento ${i+1}/${filesList.length}: ${file.name}`;
+                statusBar.style.width = "0%";
+                statusPct.innerText = "0%";
+                
+                try {
+                    await uploadFilePromise(file, (pct) => {
+                        statusBar.style.width = `${pct}%`;
+                        statusPct.innerText = `${pct}%`;
+                    });
+                } catch (err) {
+                    console.error("Upload failed for:", file.name, err);
+                    alert(`Errore nel caricamento del file ${file.name}: ${err}`);
+                }
+            }
+            
+            // Completed
+            setTimeout(() => {
+                container.classList.add("hidden");
+                loadUploads(); // Ricarica la lista dei file
+            }, 1000);
+        }
+
+        // Helper promise with XMLHttpRequest to track upload percentage
+        function uploadFilePromise(file, progressCallback) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                const formData = new FormData();
+                formData.append("file", file);
+                
+                xhr.upload.addEventListener("progress", (e) => {
+                    if (e.lengthComputable) {
+                        const pct = Math.round((e.loaded / e.total) * 100);
+                        progressCallback(pct);
+                    }
+                });
+                
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        resolve(JSON.parse(xhr.responseText));
+                    } else {
+                        reject(xhr.statusText || "Errore sconosciuto");
+                    }
+                };
+                
+                xhr.onerror = () => reject("Connessione fallita");
+                
+                xhr.open("POST", "/api/upload");
+                xhr.send(formData);
+            });
+        }
+
+        let preFiles = new Set();
+
+        // Load files from uploads/ folder
+        async function loadUploads(triggerAutoDownload = false) {
+            try {
+                const res = await fetch("/api/uploads");
+                const newUploads = await res.json();
+                
+                // Gestione download automatico dei file appena generati
+                if (triggerAutoDownload && preFiles.size > 0) {
+                    newUploads.forEach(file => {
+                        if (!preFiles.has(file.name)) {
+                            // File di nuova generazione
+                            const link = document.createElement("a");
+                            link.href = `/api/download/${file.name}`;
+                            link.download = file.name;
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                            showFloatingMessage(`Download automatico: ${file.name}`);
+                        }
+                    });
+                }
+                
+                uploads = newUploads;
+                
+                const filesList = document.getElementById("files-list");
+                if (filesList) {
+                    filesList.innerHTML = "";
+                    
+                    if (uploads.length === 0) {
+                        filesList.innerHTML = `<div class="text-center py-8 text-slate-400 text-xs">Nessun file presente nell'area di lavoro</div>`;
+                        return;
+                    }
+                    
+                    uploads.forEach(file => {
+                        const ext = (file.name.split(".").pop() || "").toLowerCase();
+                        
+                        // Classifica il file come output
+                        const isOutputFile = file.name.endsWith(".html") || 
+                                             file.name.endsWith(".docx") || 
+                                             file.name.includes("_Estratto.xlsx") || 
+                                             file.name === "Riconciliazione_risultato.xlsx" || 
+                                             file.name === "Riconciliazione_SAP_SDI.xlsx" || 
+                                             file.name === "Aging_Analisi_Crediti_Redesigned.xlsx" ||
+                                             file.name.startsWith("Dashboard_Cessioni_Credito_") ||
+                                             file.name.startsWith("Richiesta_cessione") ||
+                                             file.name.startsWith("Richiesta cessione") ||
+                                             file.name.startsWith("Riconciliazione_SAP_SDI");
+                        
+                        let iconName = "file";
+                        let iconColor = "text-slate-400";
+                        
+                        if (ext === "xlsx" || ext === "xls") {
+                            iconName = "file-spreadsheet";
+                            iconColor = "text-emerald-600";
+                        } else if (ext === "csv") {
+                            iconName = "file-text";
+                            iconColor = "text-teal-600";
+                        } else if (ext === "html") {
+                            iconName = "file-code";
+                            iconColor = "text-orange-500";
+                        } else if (ext === "md") {
+                            iconName = "file-text";
+                            iconColor = "text-blue-500";
+                        } else if (ext === "docx") {
+                            iconName = "file-text";
+                            iconColor = "text-indigo-600";
+                        } else if (ext === "json") {
+                            iconName = "file-code";
+                            iconColor = "text-amber-500";
+                        }
+                        
+                        const item = document.createElement("div");
+                        item.className = "flex items-center justify-between p-2 rounded-xl border border-slate-100 hover:bg-slate-50 transition bg-white shadow-2xs";
+                        
+                        const sizeKB = (file.size / 1024).toFixed(1);
+                        const badge = isOutputFile 
+                            ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 shrink-0">Generato</span>`
+                            : `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 shrink-0">Caricato</span>`;
+                        
+                        item.innerHTML = `
+                            <div class="flex items-center gap-2 overflow-hidden mr-2">
+                                <i data-lucide="${iconName}" class="h-4 w-4 ${iconColor} shrink-0"></i>
+                                <div class="overflow-hidden">
+                                    <div class="flex items-center gap-1.5">
+                                        <p class="text-[11px] font-semibold text-slate-800 truncate" title="${file.name}">${file.name}</p>
+                                        ${badge}
+                                    </div>
+                                    <p class="text-[9px] text-slate-400 font-medium">${sizeKB} KB</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">
+                                <a href="/api/download/${file.name}" class="p-1 hover:bg-emerald-50 text-emerald-600 rounded-lg transition" title="Scarica file" download>
+                                    <i data-lucide="download" class="h-3.5 w-3.5"></i>
+                                </a>
+                                <button onclick="insertPath('${file.name}')" class="p-1 hover:bg-blue-50 text-blue-600 rounded-lg transition" title="Inserisci percorso">
+                                    <i data-lucide="plus-circle" class="h-3.5 w-3.5"></i>
+                                </button>
+                                <button onclick="deleteUpload('${file.name}')" class="p-1 hover:bg-red-50 text-red-500 rounded-lg transition" title="Elimina file">
+                                    <i data-lucide="trash" class="h-3.5 w-3.5"></i>
+                                </button>
+                            </div>
+                        `;
+                        
+                        filesList.appendChild(item);
+                    });
+                }
+                
+                lucide.createIcons();
+                
+                // Aggiorna i dropdown dei file nelle card degli script
+                updateAllDropdowns();
+            } catch (err) {
+                console.error("Errore caricamento uploads:", err);
+            }
+        }
+
+        // Insert path helper
+        let lastFocusedInputId = null;
+        function insertPath(filename) {
+            if (lastFocusedInputId) {
+                const el = document.getElementById(lastFocusedInputId);
+                if (el) {
+                    const curVal = el.value.trim();
+                    const path = `uploads/${filename}`;
+                    el.value = curVal ? `${curVal} "${path}"` : `"${path}"`;
+                    // Trigger input event to update args automatically
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    return;
+                }
+            }
+            // Fallback: copia il percorso in clipboard
+            navigator.clipboard.writeText(`"uploads/${filename}"`);
+            showFloatingMessage(`Copiato: uploads/${filename}`);
+        }
+
+        // Delete uploaded file
+        async function deleteUpload(name) {
+            if (confirm(`Sicuro di voler eliminare il file '${name}'?`)) {
+                try {
+                    const res = await fetch(`/api/uploads/${name}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        loadUploads();
+                    } else {
+                        const err = await res.json();
+                        alert(`Errore: ${err.error}`);
+                    }
+                } catch (e) {
+                    alert(`Impossibile connettersi: ${e}`);
+                }
+            }
+        }
+
+        // Load python scripts list
+        async function loadScripts() {
+            try {
+                const grid = document.getElementById("scripts-grid");
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-sm">Rilevamento script in corso...</div>`;
+                
+                const res = await fetch("/api/scripts");
+                allScripts = await res.json();
+                
+                grid.innerHTML = "";
+                
+                if (allScripts.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 text-sm">Nessuno script Python rilevato nella cartella 'scripts/'</div>`;
+                    return;
+                }
+                
+                allScripts.forEach(script => {
+                    const card = document.createElement("div");
+                    card.id = `card-${script.filename.replace(/\s+/g, '-').replace(/\./g, '-')}`;
+                    card.className = "bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between";
+                    
+                    const isColab = ['creazione_dashboard_scadenze_automatico.py', 'posizioni_dealer_sdd.py', 'rielaborazione_estratto_conto.py', 'cessioni_ko_dashboard.py', 'elaborazione_cessioni.py'].includes(script.filename);
+                    
+                    card.innerHTML = `
+                        <div>
+                            <!-- Header card -->
+                            <div class="flex items-start justify-between gap-3 mb-2">
+                                <span class="text-[10px] font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                                    ${script.category}
+                                </span>
+                                <div id="status-${script.filename.replace(/\s+/g, '-').replace(/\./g, '-')}" class="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                                    <span class="h-2 w-2 rounded-full bg-slate-300"></span>
+                                    Pronto
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between gap-2">
+                                <h3 class="font-bold text-base text-slate-900 leading-snug truncate" title="${script.title}">${script.title}</h3>
+                                <button onclick="showInstructionsByFilename('${script.filename.replace(/'/g, "\\'")}')" class="p-1 hover:bg-slate-100 text-slate-400 hover:text-blue-600 rounded-lg transition shrink-0" title="Visualizza Istruzioni">
+                                    <i data-lucide="help-circle" class="h-4 w-4"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1.5 leading-relaxed line-clamp-2" title="${script.description}">
+                                ${script.description}
+                            </p>
+                            
+                            <!-- Parametri e configurazione esecuzione -->
+                            <div class="mt-4 pt-4 border-t border-slate-100 space-y-3">
+                                ${renderSpecializedLayout(script.filename, isColab)}
+                            </div>
+                        </div>
+                        
+                        <!-- Footer card: action -->
+                        <div class="mt-5 pt-3 flex items-center justify-between border-t border-slate-50">
+                            <span class="text-[10px] text-slate-400 font-mono">${(script.size/1024).toFixed(1)} KB</span>
+                            <button id="btn-${script.filename.replace(/\s+/g, '-').replace(/\./g, '-')}" onclick="runScript('${script.filename}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-4 rounded-lg shadow-sm hover:shadow transition flex items-center gap-1.5">
+                                <i data-lucide="play" class="h-3.5 w-3.5"></i>
+                                Esegui
+                            </button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+                
+                lucide.createIcons();
+                
+                // Aggiorna immediatamente tutti i dropdown dei file nelle nuove card caricate
+                updateAllDropdowns();
+            } catch (err) {
+                console.error("Errore caricamento script:", err);
+            }
+        }
+
+        // Render specialized UI inputs for specific scripts
+        function renderSpecializedLayout(filename, isColab) {
+            const safeNameId = filename.replace(/\s+/g, '-').replace(/\./g, '-');
+            
+            if (filename === 'convertitore_md_docx.py') {
+                return `
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Seleziona File Markdown (MD)</label>
+                        <select id="select-md-file" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="md"></select>
+                    </div>
+                `;
+            } else if (filename === 'riconciliazione_hipay_sap.py') {
+                return `
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">File Export Hipay (CSV/TXT)</label>
+                        <select id="select-hipay" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="csv,txt"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">File Partitario SAP (Excel)</label>
+                        <select id="select-sap" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="xlsx,xls"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">File Output Excel</label>
+                        <input type="text" id="output-rec" value="uploads/Riconciliazione_risultato.xlsx" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                `;
+            } else if (filename === 'riconciliazione_sap_sdi.py') {
+                return `
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">File CSV SDI (Entrate)</label>
+                        <select id="select-sdi-csv" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="csv"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">File Excel SAP (XLSX)</label>
+                        <select id="select-sdi-sap" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="xlsx,xls"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">File Output Excel</label>
+                        <input type="text" id="output-sdi" value="uploads/Riconciliazione_SAP_SDI.xlsx" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                `;
+            } else if (filename === 'controcheck_fatture_sdi.py') {
+                return `
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Report Riconciliazione Precedente</label>
+                        <select id="select-cc-prev" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="xlsx"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nuovo File CSV SDI (Entrate)</label>
+                        <select id="select-cc-new" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="csv"></select>
+                    </div>
+                `;
+            } else if (filename === 'elaborazione_aging.py') {
+                return `
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Posizioni SAP (Excel)</label>
+                        <select id="select-aging-sap" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="xlsx,xls"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bilancio CO.GE (Excel)</label>
+                        <select id="select-aging-bilancio" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="xlsx,xls"></select>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="space-y-1">
+                            <label class="text-[9px] font-bold text-slate-400 uppercase">Data Rif.</label>
+                            <input type="date" id="date-aging" value="2026-02-28" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-[11px] py-1.5 px-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[9px] font-bold text-slate-400 uppercase">Out Excel</label>
+                            <input type="text" id="out-aging-excel" value="uploads/Aging_Analisi_Crediti_Redesigned.xlsx" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-[11px] py-1.5 px-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[9px] font-bold text-slate-400 uppercase">Out Dash</label>
+                            <input type="text" id="out-aging-dash" value="uploads/Aging_Dashboard.html" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-[11px] py-1.5 px-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <input type="hidden" id="args-${safeNameId}" value="">
+                `;
+
+            } else if (filename === 'dso_report_automatico.py') {
+                return `
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bilancio SAP (Excel)</label>
+                        <select id="select-dso-bilancio" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="xlsx,xls"></select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nome Periodo</label>
+                            <input type="text" id="dso-periodo" placeholder="es. Marzo 2026" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Data Fine</label>
+                            <input type="date" id="dso-data-fine" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-1.5 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Saldo Clienti CEE (€)</label>
+                        <input type="text" id="dso-saldo-clienti" placeholder="es. 6065846.55" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                `;
+            } else if (isColab) {
+                // Per gli script Colab convertiti: dropdown per caricare il file excel primario e passarlo in input
+                return `
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Seleziona File Input (Excel/CSV)</label>
+                        <select id="select-colab-${safeNameId}" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500 select-file" data-filter="xlsx,xls,csv,txt"></select>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parametri Manuali (Opzionali)</label>
+                            <span class="text-[9px] text-slate-400">Mock colab attivo</span>
+                        </div>
+                        <input type="text" id="args-${safeNameId}" onfocus="lastFocusedInputId='args-${safeNameId}'" placeholder="Esempio: --param valore" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                `;
+            } else {
+                // Layout standard generico
+                return `
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Parametri di Esecuzione</label>
+                        <input type="text" id="args-${safeNameId}" onfocus="lastFocusedInputId='args-${safeNameId}'" placeholder="Esempio: -i uploads/file.xlsx" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 px-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    </div>
+                `;
+            }
+        }
+
+        // Update all file dropdown select elements in card components
+        function updateAllDropdowns() {
+            const dropdowns = document.querySelectorAll(".select-file");
+            dropdowns.forEach(dd => {
+                const currentVal = dd.value;
+                dd.innerHTML = "";
+                
+                // Aggiungi opzione placeholder
+                const emptyOpt = document.createElement("option");
+                emptyOpt.value = "";
+                emptyOpt.innerText = "Seleziona un file caricato...";
+                dd.appendChild(emptyOpt);
+                
+                // Filtro estensione
+                const filter = dd.dataset.filter;
+                const filterExts = filter ? filter.split(",") : [];
+                
+                uploads.forEach(file => {
+                    const ext = (file.name.split(".").pop() || "").toLowerCase();
+                    if (filterExts.length === 0 || filterExts.includes(ext)) {
+                        const opt = document.createElement("option");
+                        opt.value = `uploads/${file.name}`;
+                        
+                        const isOutputFile = file.name.endsWith(".html") || 
+                                             file.name.includes("_Estratto.xlsx") || 
+                                             file.name === "Riconciliazione_risultato.xlsx" || 
+                                             file.name === "Riconciliazione_SAP_SDI.xlsx" || 
+                                             file.name === "Aging_Analisi_Crediti_Redesigned.xlsx" ||
+                                             file.name.startsWith("Dashboard_Cessioni_Credito_") ||
+                                             file.name.startsWith("Richiesta_cessione") ||
+                                             file.name.startsWith("Richiesta cessione") ||
+                                             file.name.startsWith("Riconciliazione_SAP_SDI");
+                                             
+                        opt.innerText = `${file.name} ${isOutputFile ? '⚙️ [Generato]' : '📥 [Caricato]'}`;
+                        dd.appendChild(opt);
+                    }
+                });
+                
+                // Ripristina valore se ancora disponibile
+                if (currentVal && Array.from(dd.options).some(o => o.value === currentVal)) {
+                    dd.value = currentVal;
+                }
+            });
+        }
+
+        // Run script trigger
+        function runScript(filename) {
+            const safeNameId = filename.replace(/\s+/g, '-').replace(/\./g, '-');
+            
+            if (runningScript) {
+                alert(`Uno script è già in esecuzione (${runningScript}). Attendi il completamento.`);
+                return;
+            }
+            
+            let args = "";
+            let filesParam = "";
+            
+            // Logica specifica per compilare argomenti e file da inviare
+            if (filename === 'convertitore_md_docx.py') {
+                const md = document.getElementById("select-md-file").value;
+                if (!md) {
+                    alert("Seleziona un file Markdown per procedere.");
+                    return;
+                }
+                args = `-i "${md}"`;
+                filesParam = md;
+            } else if (filename === 'riconciliazione_hipay_sap.py') {
+                const hi = document.getElementById("select-hipay").value;
+                const sap = document.getElementById("select-sap").value;
+                const out = document.getElementById("output-rec").value;
+                
+                if (!hi || !sap) {
+                    alert("Seleziona sia il file Hipay che il file SAP per procedere.");
+                    return;
+                }
+                args = `--out-excel "${out}"`;
+                filesParam = `${hi},${sap}`;
+            } else if (filename === 'riconciliazione_sap_sdi.py') {
+                const sdi = document.getElementById("select-sdi-csv").value;
+                const sap = document.getElementById("select-sdi-sap").value;
+                const out = document.getElementById("output-sdi").value;
+                
+                if (!sdi || !sap) {
+                    alert("Seleziona sia il file SDI che il file SAP per procedere.");
+                    return;
+                }
+                args = `--out-excel "${out}"`;
+                filesParam = `${sdi},${sap}`;
+            } else if (filename === 'controcheck_fatture_sdi.py') {
+                const prev = document.getElementById("select-cc-prev").value;
+                const newSdi = document.getElementById("select-cc-new").value;
+                
+                if (!prev || !newSdi) {
+                    alert("Seleziona sia il report precedente che il nuovo file SDI.");
+                    return;
+                }
+                args = "";
+                filesParam = `${prev},${newSdi}`;
+            } else if (filename === 'elaborazione_aging.py') {
+                const sap = document.getElementById("select-aging-sap").value;
+                const bil = document.getElementById("select-aging-bilancio").value;
+                const date = document.getElementById("date-aging").value;
+                const outEx = document.getElementById("out-aging-excel").value;
+                const outDash = document.getElementById("out-aging-dash").value;
+                
+                if (!sap || !bil) {
+                    alert("Seleziona sia il file SAP che il file Bilancio per procedere.");
+                    return;
+                }
+                args = `--sap "${sap}" --bilancio "${bil}" --ref-date "${date}" --out-excel "${outEx}" --out-dash "${outDash}"`;
+                filesParam = `${sap},${bil}`;
+
+            } else if (filename === 'dso_report_automatico.py') {
+                const bil = document.getElementById("select-dso-bilancio").value;
+                const periodo = document.getElementById("dso-periodo").value.trim();
+                const dataFine = document.getElementById("dso-data-fine").value;
+                const saldo = document.getElementById("dso-saldo-clienti").value.trim();
+                
+                if (!bil || !periodo || !dataFine || !saldo) {
+                    alert("Compila tutti i campi (Bilancio, Periodo, Data Fine, Saldo Clienti) per eseguire lo script DSO.");
+                    return;
+                }
+                args = `--bilancio "${bil}" --periodo "${periodo}" --data-fine "${dataFine}" --saldo-clienti "${saldo}"`;
+                filesParam = bil;
+            } else {
+                // Layout standard o Colab
+                const argsEl = document.getElementById(`args-${safeNameId}`);
+                args = argsEl ? argsEl.value : "";
+                
+                // Se è uno script Colab, raccogli il file selezionato e passalo nel parametro ?files=...
+                const colabSelect = document.getElementById(`select-colab-${safeNameId}`);
+                if (colabSelect) {
+                    const selectedVal = colabSelect.value;
+                    if (selectedVal) {
+                        filesParam = selectedVal;
+                    }
+                }
+            }
+
+            // Salva lo stato dei file prima dell'avvio per rilevare nuovi file generati
+            preFiles = new Set(uploads.map(f => f.name));
+
+            // Avvia esecuzione
+            executeScriptSSE(filename, args, filesParam);
+        }
+
+        // Connects to SSE endpoint to execute script and stream outputs to console
+        function executeScriptSSE(filename, args, filesParam) {
+            runningScript = filename;
+            const safeNameId = filename.replace(/\s+/g, '-').replace(/\./g, '-');
+            
+            // Update Card UI
+            const statusBox = document.getElementById(`status-${safeNameId}`);
+            statusBox.innerHTML = `<span class="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>In esecuzione`;
+            
+            const btn = document.getElementById(`btn-${safeNameId}`);
+            btn.disabled = true;
+            btn.classList.add("opacity-50", "cursor-not-allowed");
+            
+            // Console update
+            clearConsole();
+            printConsoleLine(`[SYSTEM] Avvio script: ${filename}...`);
+            if (args) printConsoleLine(`[SYSTEM] Argomenti passati: ${args}`);
+            if (filesParam) printConsoleLine(`[SYSTEM] Files Colab: ${filesParam}`);
+            printConsoleLine(`----------------------------------------------------------------`);
+            
+            // Establish Server-Sent Events stream
+            const url = `/api/run/${filename}?args=${encodeURIComponent(args)}&files=${encodeURIComponent(filesParam)}`;
+            eventSource = new EventSource(url);
+            
+            eventSource.onmessage = (event) => {
+                const line = event.data;
+                
+                // Check if final statuses are outputted
+                if (line.startsWith("[SUCCESS]")) {
+                    statusBox.innerHTML = `<span class="h-2 w-2 rounded-full bg-emerald-500"></span>Completato`;
+                    printConsoleLine(`\n${line}`, "text-emerald-400 font-bold");
+                    closeSSE(true);
+                } else if (line.startsWith("[ERROR]")) {
+                    statusBox.innerHTML = `<span class="h-2 w-2 rounded-full bg-red-500"></span>Fallito`;
+                    printConsoleLine(`\n${line}`, "text-red-500 font-bold");
+                    closeSSE(false);
+                } else {
+                    // Normal log output line
+                    printConsoleLine(line);
+                }
+            };
+            
+            eventSource.onerror = (e) => {
+                // Se lo script non è più segnato come in esecuzione (es. chiuso da closeSSE in onmessage),
+                // ignoriamo la chiusura del canale SSE
+                if (!runningScript) return;
+                
+                printConsoleLine(`\n❌ [SSE] Connessione chiusa o interrotta.`, "text-red-500");
+                statusBox.innerHTML = `<span class="h-2 w-2 rounded-full bg-red-500"></span>Terminato con errori`;
+                closeSSE(false);
+            };
+        }
+
+        // Close EventSource stream
+        function closeSSE(success = false) {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            if (runningScript) {
+                const safeNameId = runningScript.replace(/\s+/g, '-').replace(/\./g, '-');
+                const btn = document.getElementById(`btn-${safeNameId}`);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove("opacity-50", "cursor-not-allowed");
+                }
+                runningScript = null;
+            }
+            // Ricarica la cartella uploads/ per rilevare file eventualmente generati
+            setTimeout(() => loadUploads(success), 1000);
+        }
+
+        // Print line inside console log box
+        function printConsoleLine(text, className = "text-emerald-400") {
+            const consoleBox = document.getElementById("console-logs");
+            const line = document.createElement("div");
+            line.className = className;
+            
+            // Gestisci newlines
+            line.innerText = text;
+            consoleBox.appendChild(line);
+            
+            // Auto scroll to bottom
+            const autoscroll = document.getElementById("autoscroll-toggle").checked;
+            if (autoscroll) {
+                consoleBox.scrollTop = consoleBox.scrollHeight;
+            }
+        }
+
+        // Clear console logs
+        function clearConsole() {
+            document.getElementById("console-logs").innerHTML = "";
+        }
+
+        // Floating info helper
+        function showFloatingMessage(text) {
+            const toast = document.createElement("div");
+            toast.className = "fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-semibold py-2 px-4 rounded-lg shadow-xl z-50 transition-opacity duration-300";
+            toast.innerText = text;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // Instructions Modal Functions
+        function showInstructionsModal(title, instructions) {
+            document.getElementById("modal-title").innerText = `Istruzioni: ${title}`;
+            document.getElementById("modal-content").innerText = instructions || "Nessuna istruzione disponibile per questo script.";
+            
+            const modal = document.getElementById("instructions-modal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+            setTimeout(() => {
+                modal.querySelector(".modal-container").classList.remove("scale-95", "opacity-0");
+                modal.querySelector(".modal-container").classList.add("scale-100", "opacity-100");
+            }, 10);
+            
+            // Re-render lucide icons inside modal
+            lucide.createIcons();
+        }
+        
+        function closeInstructionsModal() {
+            const modal = document.getElementById("instructions-modal");
+            const container = modal.querySelector(".modal-container");
+            if (container) {
+                container.classList.remove("scale-100", "opacity-100");
+                container.classList.add("scale-95", "opacity-0");
+            }
+            setTimeout(() => {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+            }, 200);
+        }
+
+        // Helper to retrieve instructions dynamically and display them
+        function showInstructionsByFilename(filename) {
+            const script = allScripts.find(s => s.filename === filename);
+            if (script) {
+                showInstructionsModal(script.title, script.instructions);
+            } else {
+                showInstructionsModal(filename, "Istruzioni non trovate.");
+            }
+        }
+    </script>
+
+    <!-- Modal Istruzioni -->
+    <div id="instructions-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300">
+        <div class="modal-container bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden transform scale-95 opacity-0 transition-all duration-200 flex flex-col max-h-[85vh]">
+            <!-- Header -->
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div class="flex items-center gap-3">
+                    <div class="h-9 w-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+                        <i data-lucide="book-open" class="h-4.5 w-4.5"></i>
+                    </div>
+                    <div>
+                        <h3 id="modal-title" class="font-bold text-sm text-slate-900 leading-none">Istruzioni</h3>
+                        <p class="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-1">Guida all'utilizzo dello script</p>
+                    </div>
+                </div>
+                <button onclick="closeInstructionsModal()" class="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition" title="Chiudi">
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                </button>
+            </div>
+            <!-- Body -->
+            <div class="p-6 overflow-y-auto space-y-4 flex-1">
+                <div id="modal-content" class="text-xs text-slate-600 leading-relaxed whitespace-pre-line font-medium">
+                    <!-- Le istruzioni verranno inserite qui -->
+                </div>
+            </div>
+            <!-- Footer -->
+            <div class="p-4 bg-slate-50/50 border-t border-slate-100 flex justify-end">
+                <button onclick="closeInstructionsModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-5 rounded-lg shadow-sm hover:shadow transition">
+                    Ho Capito
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

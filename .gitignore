@@ -1,0 +1,33 @@
+# Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# User data & uploads
+uploads/*
+!uploads/.gitkeep
+
+# Output files and data in root
+*.xlsx
+*.html
+*.csv
+!templates/*.html
+
+# Recovery & Sandboxing artifacts (CTF leftovers)
+antigravity_decryptor/
+76e90def_uuid_decrypted.json
+extract_pb.py
+extracted_strings.txt
+reconstruct.py
+runs.txt
+strings_ascii.py
+try_key.py
